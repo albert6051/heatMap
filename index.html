@@ -3,7 +3,7 @@
 Created using JS Bin
 http://jsbin.com
 
-Copyright (c) 2021 by albert6051 (http://jsbin.com/zesinob/2/edit)
+Copyright (c) 2021 by albert6051 (http://jsbin.com/zesinob/4/edit)
 
 Released under the MIT license: http://jsbin.mit-license.org
 -->
@@ -13,15 +13,34 @@ Released under the MIT license: http://jsbin.mit-license.org
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
   <script src="https://d3js.org/d3.v6.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+
   <title>JS Bin</title>
+<style id="jsbin-css">
+.tooltip {
+  position: absolute;
+  display: inline-block;
+}
+
+#container {
+  display: flex
+}
+
+#legend-svg {
+  
+}
+</style>
 </head>
 <body>
-  <div id="my_dataviz"></div>
+  <div id="container">
+    <div id="my_dataviz"></div>
+    <div id="legend-svg" height=300 width=450></div>
+  </div>
 <script id="jsbin-javascript">
 // set the dimensions and margins of the graph
-const margin = {top: 80, right: 25, bottom: 30, left: 440},
-  width = 850 - margin.left - margin.right,
-  height = 450 - margin.top - margin.bottom;
+const margin = {top: 80, right: 25, bottom: 30, left: 175},
+  width = 500 - margin.left - margin.right,
+  height = 400 - margin.top - margin.bottom;
 
 // append the svg object to the body of the page
 const svg = d3.select("#my_dataviz")
@@ -60,9 +79,9 @@ d3.csv("https://raw.githubusercontent.com/albert6051/Testing/main/heat_map.csv")
     .select(".domain").remove()
 
   // Build color scale
-  const myColor = d3.scaleSequential()
-    .interpolator(d3.interpolateInferno)
-    .domain([-1,1])
+  const myColor = d3.scaleDiverging()
+    .interpolator(d3.interpolateRdBu)
+    .domain([1, 0, -1])
 
   // create a tooltip
   const tooltip = d3.select("#my_dataviz")
@@ -86,8 +105,8 @@ d3.csv("https://raw.githubusercontent.com/albert6051/Testing/main/heat_map.csv")
   const mousemove = function(event,d) {
     tooltip
       .html("The exact value of<br>this cell is: " + d.value)
-      .style("left", (event.x)/2 + "px")
-      .style("top", (event.y)/2 + "px")
+      .style("left", (event.x)+20 + "px")
+      .style("top", (event.y)+20 + "px")
   }
   const mouseleave = function(event,d) {
     tooltip
@@ -114,25 +133,93 @@ d3.csv("https://raw.githubusercontent.com/albert6051/Testing/main/heat_map.csv")
     .on("mouseover", mouseover)
     .on("mousemove", mousemove)
     .on("mouseleave", mouseleave)
-})
+  
 
-// Add title to graph
-svg.append("text")
-        .attr("x", 0)
-        .attr("y", -50)
-        .attr("text-anchor", "left")
-        .style("font-size", "22px")
-        .text("PCA heatmap");
+  });
 
-// Add subtitle to graph
-svg.append("text")
-        .attr("x", 0)
-        .attr("y", -20)
-        .attr("text-anchor", "left")
-        .style("font-size", "14px")
-        .style("fill", "grey")
-        .style("max-width", 400)
-        .text("This the PCA heetmap for agricultural prouction.");
+  // Add title to graph
+  svg.append("text")
+          .attr("x", 0)
+          .attr("y", -50)
+          .attr("text-anchor", "left")
+          .style("font-size", "22px")
+          .text("PCA heatmap");
+
+  // Add subtitle to graph
+  svg.append("text")
+          .attr("x", 0)
+          .attr("y", -20)
+          .attr("text-anchor", "left")
+          .style("font-size", "14px")
+          .style("fill", "grey")
+          .style("max-width", 400)
+          .text("This the PCA heetmap for agricultural inputs and outputs.");
+
+ const myColor = d3.scaleSequential()
+    .interpolator(d3.interpolateRdBu)
+    .domain([1, -1])
+
+  var legend = d3.select("#legend-svg");
+  continuous("#legend-svg", myColor);
+
+// create continuous color legend
+function continuous(selector_id, colorscale) {
+  var legendheight = 400,
+      legendwidth = 80,
+      margin = {top: 80, right: 60, bottom: 40, left: 2};
+
+  var canvas = d3.select(selector_id)
+    .style("height", legendheight + "px")
+    .style("width", legendwidth + "px")
+    .style("position", "relative")
+    .append("canvas")
+    .attr("height", legendheight - margin.top - margin.bottom)
+    .attr("width", 1)
+    .style("height", (legendheight - margin.top - margin.bottom) + "px")
+    .style("width", (legendwidth - margin.left - margin.right) + "px")
+    .style("border", "1px solid #000")
+    .style("position", "absolute")
+    .style("top", (margin.top) + "px")
+    .style("left", (margin.left) + "px")
+    .node();
+
+  var ctx = canvas.getContext("2d");
+
+  var legendscale = d3.scaleLinear()
+    .range([1, legendheight - margin.top - margin.bottom])
+    .domain(colorscale.domain());
+
+  // image data hackery based on http://bl.ocks.org/mbostock/048d21cf747371b11884f75ad896e5a5
+  var image = ctx.createImageData(1, legendheight);
+  d3.range(legendheight).forEach(function(i) {
+    var c = d3.rgb(colorscale(legendscale.invert(i)));
+    image.data[4*i] = c.r;
+    image.data[4*i + 1] = c.g;
+    image.data[4*i + 2] = c.b;
+    image.data[4*i + 3] = 255;
+  });
+  ctx.putImageData(image, 0, 0);
+
+  var legendaxis = d3.axisRight()
+    .scale(legendscale)
+    .tickSize(6)
+    .ticks(8);
+
+  var svg = d3.select(selector_id)
+    .append("svg")
+    .attr("height", (legendheight) + "px")
+    .attr("width", (legendwidth) + "px")
+    .style("position", "absolute")
+    .style("left", "0px")
+    .style("top", "0px")
+
+  svg
+    .append("g")
+    .attr("class", "axis")
+    .attr("transform", "translate(" + (legendwidth - margin.left - margin.right + 3) + "," + (margin.top) + ")")
+    .call(legendaxis);
+};
+
 
 </script>
 </body>
